@@ -1,0 +1,56 @@
+import requests
+from bs4 import BeautifulSoup
+import csv
+import time
+import schedule
+from datetime import datetime
+import os
+
+# -------------------
+# Config
+# -------------------
+URL = 'https://quotes.toscrape.com/'
+OUTPUT_CSV = 'quotes.csv'
+
+# -------------------
+# Scraping Function
+# -------------------
+def scrape_quotes():
+    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Scraping...")
+    try:
+        response = requests.get(URL)
+        soup = BeautifulSoup(response.content, 'html.parser')
+        quotes = soup.find_all('div', class_='quote')
+
+        data = []
+        for quote in quotes:
+            text = quote.find('span', class_='text').get_text(strip=True)
+            author = quote.find('small', class_='author').get_text(strip=True)
+            tags = ', '.join([tag.get_text(strip=True) for tag in quote.find_all('a', class_='tag')])
+            data.append([text, author, tags])
+
+        file_exists = os.path.isfile(OUTPUT_CSV)
+
+        # Save to CSV
+        with open(OUTPUT_CSV, mode='a', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            if not file_exists:
+                writer.writerow(['Quote', 'Author', 'Tags'])  # header
+            writer.writerows(data)
+
+        print(f" Scraped and saved {len(data)} quotes.")
+
+    except Exception as e:
+        print("❌ Error:", e)
+
+# -------------------
+# Scheduler Setup
+# -------------------
+schedule.every(1).minutes.do(scrape_quotes)
+
+print(" Web Scraper is running every 1 minute...\nPress CTRL+C to stop.\n")
+
+# Run indefinitely
+while True:
+    schedule.run_pending()
+    time.sleep(1)
